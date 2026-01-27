@@ -272,7 +272,7 @@ header {
     background-color: var(--primary-color);
     /*
     Try replacing with:
-    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    background: linear-gradient(0deg, var(--primary-color), var(--accent-color));
     */
     color: var(--white);
     text-align: center;
