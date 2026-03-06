@@ -1,7 +1,50 @@
-# HTML & CSS Foundations Tutorial
-## Building Your First GitHub Pages Site
+# Overview
+## What is your portfolio and what does it do?
+This webpage portfolio acts as a sandbox for me to showcase my trial (and error) on web authoring - languages/tools used and struggles/confusions I have gone through.
 
-Welcome. By the end of this tutorial, you'll have a working personal website hosted on GitHub Pages—a real site with a real URL that you can share with anyone.
+## What makes your portfolio effective?
+Still thinking through, will try and see.
+
+
+# Page Contents
+## Introduction
+- My confusions and questions
+- My observations along the way
+
+## Projects
+- Layout and content approach
+- Information provided
+- Design choice
+
+## Navigation
+- navigation placement and links
+- responsive behavior if different from desktop
+
+## Footer
+- Let the tool be your compass!
+
+## Additional 
+- None
+
+# Special Features
+- Think about: Interactive elements, animations, particularly effective use of CSS, creative solutions to design challenges
+
+# Technologies used
+## Core Technologies
+- HTML5
+- CSS3
+
+## Development Tools
+- Text editor: [What you used to write code]
+
+- Browsers tested: [List all browsers you tested in]
+
+- Wireframing tool: [What you used for planning]
+
+- Color tool: [What you used to choose colors]
+
+- Version control: [Git and GitHub]
+
 
 ---
 
