@@ -9,7 +9,7 @@ The purpose of this website is to document my courseworks in AIML. The target au
 - Teachers
 - Classmates
 - My future self
-- 
+  
 ## 3. Content Plan
 
 The website includes:
