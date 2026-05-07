@@ -1,1 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Documentation for the Language Detector project">
+    <title>Language Detector</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <a href="index.html" class="logo">Project Portfolio</a>
+            <nav aria-label="Main navigation">
+                <ul class="nav-list">
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="overview.html">Overview</a></li>
+                    <li><a href="neuron.html">Neuron</a></li>
+                    <li><a href="language.html" class="active">Language</a></li>
+                    <li><a href="digits.html">Digits</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
 
+    <main class="container">
+        <article class="page-content">
+            <h1>Language Detector</h1>
+            <p>This project predicts the language of a text by comparing word-length patterns. The reference texts used were Dewey for English, Montessori for Italian, and Freire for Portuguese.</p>
+
+            <section>
+                <h2>Purpose</h2>
+                <p>The aim of the project was to explore whether simple statistics can be used to identify language. Instead of using a full dictionary or machine learning library, the program compares the lengths of words found in different texts.</p>
+            </section>
+
+            <section>
+                <h2>How the Project Works</h2>
+                <ol>
+                    <li>Extract word lengths from a text using <code>get_word_lengths()</code></li>
+                    <li>Build a distribution of word lengths using <code>word_length_distribution()</code></li>
+                    <li>Convert counts to percentages using <code>percentage_distribution()</code></li>
+                    <li>Compare two texts using a basic statistical method or Mean Squared Error (MSE)</li>
+                    <li>Predict the language with the smallest distance → closest match</li>
+                </ol>
+            </section>
+
+            <section>
+                <h2>Exercise 1 — get_word_lengths</h2>
+                <pre><code># Takes a string of text and returns a list of how long each word is
+# 
+def get_word_lengths(text) -> list:
+    """
+    Extract the length of each word in a text.
+
+    Args:
+        text: String containing the text to analyze
+
+    Returns:
+        List of integers representing word lengths
+    """
+    length = []          # Start with an empty list to store each word's length
+    words = text.split() # Split the text into individual words
+    for word in words:   # Loop through every word
+        word_length = len(word)
+        length.append(word_length)  # Add the length to our list
+    return length</code></pre>
+            </section>
+
+            <section>
+                <h2>Exercise 2 — word_length_distribution</h2>
+                <pre><code># Counts how many words exist at each possible length
+# Returns a list where index 0 = count of 0-letter words, index 1 = 1-letter words, etc.
+def word_length_distribution(text) -> list:
+    """
+    Count how many words have each length.
+
+    Args:
+        text: String containing the text to analyze
+
+    Returns:
+        A list where index represents word length and value is the count
+    """
+    word_lengths = get_word_lengths(text)  # First get all the word lengths
+    counts = []
+    longest_word_length = max(word_lengths)  # Find the longest word so we know where to stop
+
+    # For each possible length from 0 up to (but not including) the longest word,
+    # count how many words have exactly that length
+    for word_length in range(longest_word_length):
+        counts_words = word_lengths.count(word_length)
+        counts.append(counts_words)
+
+    return counts</code></pre>
+            </section>
+
+            <section>
+                <h2>Exercise 3 — plot_histogram</h2>
+                <pre><code>import matplotlib.pyplot as plt
+import numpy as np
+
+# Draws a bar chart showing how many words exist at each length
+# The title parameter lets us label each chart so we know which language it belongs to
+def plot_histogram(distribution, title):
+    """Create a bar chart of word lengths."""
+    xpoints = list(range(len(distribution)))  # X axis: word lengths (0, 1, 2, 3...)
+    ypoints = distribution                    # Y axis: how many words at each length
+    plt.bar(xpoints, ypoints)
+    plt.xlabel("length")
+    plt.ylabel("count")
+    plt.title(title)
+    plt.show()</code></pre>
+            </section>
+
+            <section>
+                <h2>Exercise 4 — percentage_distribution</h2>
+                <pre><code># Converts raw word-length counts into percentages
+# This makes it fair to compare texts of different total lengths
+def percentage_distribution(text):
+    """
+    Calculate percentage of words at each length.
+
+    Returns:
+        List where values are percentages (0-100)
+       
+    """
+    # Get the raw count distribution first
+    count = word_length_distribution(text)
+    total_words = sum(counts)  # Total number of words in the text
+
+    percentages = []
+    for count in counts:                        # Loop through each length's count
+        percents = (count / total_words) * 100  # Convert to a percentage
+        percentages.append(percents)            # Add to our results list
+    return percentages</code></pre>
+            </section>
+
+            <section>
+                <h2>Exercise 5 — compare_statistics (Basic Method)</h2>
+                <pre><code># Helper: calculates the average word length for a text
+def mean_word_length(text):
+    length = get_word_lengths(text)
+    return sum(length) / len(length)
+
+
+# Helper: calculates the median word length for a text
+# Handles both odd and even list sizes correctly
+def median_word_length(text):
+    length = sorted(get_word_lengths(text))  # Sort so we can find the middle value
+    w = len(length)                          # Total number of words
+    if w % 2 == 1:                           # If odd, the middle index is straightforward
+        return length[w // 2]
+    else:                                    # If even, average the two middle values
+        return (length[w // 2 - 1] + length[w // 2]) / 2
+
+
+# Compares two texts by looking at how different their mean and median word lengths are
+# A smaller result means the texts are more similar to each other
+def compare_statistics(text1, text2):
+    """
+    Calculate distance between two texts using average and median.
+
+    Returns:
+        Float representing distance (smaller = more similar)
+    """
+    mean1 = mean_word_length(text1)
+    mean2 = mean_word_length(text2)
+
+    median1 = median_word_length(text1)
+    median2 = median_word_length(text2)
+
+    difference_means = abs(mean1 - mean2)    # abs() gives us the positive difference
+    difference_median = abs(median1 - median2)
+
+    total_dist = (difference_means + difference_median)  # Add both differences together
+    return total_dist</code></pre>
+            </section>
+
+            <section>
+                <h2>Exercise 6 — mean_squared_error (Advanced Method)</h2>
+                <pre><code># Compares two texts using Mean Squared Error on their full word-length distributions
+# MSE is more reliable than the basic method because it looks at the whole picture,
+# not just the mean and median
+def mean_squared_error(text1, text2):
+    """
+    Calculate MSE between percentage distributions of two texts.
+
+    Returns:
+        Float representing MSE (smaller = more similar)
+    """
+    # Get the percentage distribution for each text
+    p = percentage_distribution(text1)
+    q = percentage_distribution(text2)
+
+    # Both lists need to be the same length to compare them index by index
+    # We pad the shorter one with 0.0 (meaning: no words of that length)
+    max_len = max(len(p), len(q))
+    p = p + [0.0] * (max_len - len(p))
+    q = q + [0.0] * (max_len - len(q))
+
+    # Loop through every word length and accumulate the squared differences
+    total_square_difference = 0.0
+    for i in range(max_len):
+        difference = p[i] - q[i]                              # Difference at this word length
+        total_square_difference = total_square_difference + difference * difference  # Square it and add
+
+    MSE = total_square_difference / max_len  # Average the total to get the final MSE score
+    return MSE</code></pre>
+            </section>
+
+            <section>
+                <h2>Exercise 7 — Language Predictors</h2>
+                <pre><code># Advanced predictor: uses MSE to find which reference language is closest
+# Whichever language has the smallest MSE distance wins
+def predict_language_advanced(sample_text, english_ref, italian_ref, portuguese_ref):
+    """
+    Predict the language of a sample text using MSE.
+
+    Args:
+        sample_text: Text to classify
+        english_ref: Reference text in English
+        italian_ref: Reference text in Italian
+        portuguese_ref: Reference text in Portuguese
+
+    Returns:
+        String: "English", "Italian", or "Portuguese"
+    """
+    english_distance    = mean_squared_error(sample_text, english_ref)
+    italian_distance    = mean_squared_error(sample_text, italian_ref)
+    portuguese_distance = mean_squared_error(sample_text, portuguese_ref)
+
+    # Find the smallest distance — that's our predicted language
+    advanced_distance = min(english_distance, italian_distance, portuguese_distance)
+
+    if advanced_distance == english_distance:
+        return "English"
+    elif advanced_distance == italian_distance:
+        return "Italian"
+    elif advanced_distance == portuguese_distance:
+        return "Portuguese"
+    else:
+        pass
+    return "Something went wrong"
+
+
+# Basic predictor: uses mean and median statistics instead of MSE
+# Less accurate but simpler to understand
+def predict_language_basic(sample_text, english_ref, italian_ref, portuguese_ref):
+    """
+    Predict the language of a sample text using basic statistics.
+
+    Args:
+        sample_text: Text to classify
+        english_ref: Reference text in English
+        italian_ref: Reference text in Italian
+        portuguese_ref: Reference text in Portuguese
+
+    Returns:
+        String: "English", "Italian", or "Portuguese"
+    """
+    english_distance    = compare_statistics(sample_text, english_ref)
+    italian_distance    = compare_statistics(sample_text, italian_ref)
+    portuguese_distance = compare_statistics(sample_text, portuguese_ref)
+
+    # Whichever language has the smallest statistical distance is our prediction
+    basic_distance = min(english_distance, italian_distance, portuguese_distance)
+
+    if basic_distance == english_distance:
+        return "English"
+    elif basic_distance == italian_distance:
+        return "Italian"
+    elif basic_distance == portuguese_distance:
+        return "Portuguese"
+    else:
+        return "Something went wrong"</code></pre>
+            </section>
+
+            <section>
+                <h2>Testing Results</h2>
+                <table>
+                    <caption>Prediction results at different sample sizes</caption>
+                    <thead>
+                    <tr>
+                    <th>Sample Size</th>
+                    <th>Basic Method</th>
+                    <th>Advanced MSE Method</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>100 characters</td><td>English</td><td>English</td></tr>
+                    <tr><td>500 characters</td><td>Italian</td><td>English</td></tr>
+                    <tr><td>1,000 characters</td><td>Italian</td><td>English</td></tr>
+                    <tr><td>5,000 characters</td><td>Italian</td><td>English</td></tr>
+                    <tr><td>100,000 characters</td><td>Portuguese</td><td>English</td></tr>
+                    </tbody>
+                </table>
+                <p>The results show that the <strong>advanced MSE method</strong> was more stable and reliable than the basic comparison method across all sample sizes.</p>
+            </section>
+
+            <section>
+                <h2>Sanity Check</h2>
+                <table>
+                    <caption>MSE self-comparison test</caption>
+                    <thead>
+                    <tr>
+                    <th>Test</th>
+                    <th>Input</th>
+                    <th>Expected Result</th>
+                    <th>Actual Result</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                    <td>Same text compared to itself</td>
+                    <td><code>mean_squared_error("this is an example text", "this is an example text")</code></td>
+                    <td>0.0</td>
+                    <td>0.0 ✓</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section>
+                <h2>Reflection</h2>
+                <p>This project showed that languages can have different statistical patterns, even when we only measure word lengths. One interesting finding was that short samples can be misleading, while larger samples give better evidence. The MSE method was more reliable because it compares the full distribution instead of only a small number of summary values.</p>
+                <p>A limitation is that word length alone cannot capture all the features of a language. In future, I would improve the system by combining word lengths with letter frequencies or n-grams to make the predictor more accurate.</p>
+            </section>
+        </article>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>© 2026 Project Documentation Website</p>
+        </div>
+    </footer>
+</body>
+</html>
