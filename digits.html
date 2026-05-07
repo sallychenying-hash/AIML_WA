@@ -1,1 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Documentation for the Digit Analyzer neural network project">
+    <title>Digit Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <a href="index.html" class="logo">Project Portfolio</a>
+            <nav aria-label="Main navigation">
+                <ul class="nav-list">
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="overview.html">Overview</a></li>
+                    <li><a href="neuron.html">Neuron</a></li>
+                    <li><a href="language.html">Language</a></li>
+                    <li><a href="digits.html" class="active">Digits</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
 
+    <main class="container">
+        <article class="page-content">
+            <h1>Digit Analyzer</h1>
+            <p>This project uses a neural network built from scratch in Python to classify handwritten digits from the MNIST dataset. The input is a 28 × 28 pixel image, giving 784 input values.</p>
+
+            <section>
+                <h2>Purpose</h2>
+                <p>The goal of the project was to understand how a neural network works internally by building one manually instead of depending on a high-level machine learning library. This meant implementing forward propagation, loss calculation, and backpropagation by hand.</p>
+            </section>
+
+            <section>
+                <h2>Network Architecture</h2>
+                <p>The network structure used was <code>784 → 128 → 64 → 10</code>, giving a total of <strong>109,386</strong> trainable parameters.</p>
+                <table>
+                    <caption>Neural network layer structure</caption>
+                    <thead>
+                    <tr><th>Layer</th><th>Size</th><th>Purpose</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>Input</td><td>784</td><td>Receives pixel values from the image</td></tr>
+                    <tr><td>Hidden Layer 1</td><td>128</td><td>Learns patterns from the image</td></tr>
+                    <tr><td>Hidden Layer 2</td><td>64</td><td>Refines the extracted features</td></tr>
+                    <tr><td>Output</td><td>10</td><td>Predicts digits 0 – 9</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section>
+                <h2>Full Source Code</h2>
+
+                <pre><code>import random
+import math
+
+# ─────────────────────────────────────────────
+# BASE CLASSES — Blueprints
+# ─────────────────────────────────────────────
+
+# Every layer type in the network must have a forward() method
+# This base class just defines that contract — the real logic lives in the subclasses
+class Layer:
+    """
+    It defines that every layer MUST have a forward() method.
+    it is just a template.
+    """
+    def forward(self, inputs):
+        pass  # InputLayer, HiddenLayer... will fill this in
+
+
+# The first layer in the network — it just passes the raw data through unchanged
+# We use copy() so the original input list is never accidentally modified
+class InputLayer(Layer):
+    """
+    First layer in the network.
+    Accepts the raw data and passes it on.
+    """
+    def forward(self, inputs):
+        return inputs.copy()  # we use copy() so the original data is never accidentally changed.
+
+
+# Hidden layers sit between the input and output
+# Each node computes a weighted sum of its inputs, then applies an activation function
+class HiddenLayer(Layer):
+    """
+    Middle layers.
+    It stores its own weights and biases so backpropagation can update them.
+    After computing the weighted sum it applies an activation function
+    """
+    def __init__(self, weights, biases, activation):
+        self.weights = weights          # one list of weights per node
+        self.biases = biases            # one bias per node
+        self.activation = activation    # activation function object
+
+    def forward(self, inputs):
+        """
+        1: Compute the weighted sum for every node.
+        2: Save those pre-activation values.
+        3: Apply the activation function and return the results.
+        """
+        pre_activation_values = []
+
+        # Loop through each node using its weights and bias together
+        for node_weights, node_bias in zip(self.weights, self.biases):
+            weighted_sum = sum(weight * input_value for weight, input_value in zip(node_weights, inputs)) + node_bias
+            pre_activation_values.append(weighted_sum)
+
+        # Save pre-activation values on the object
+        self.pre_activation_values = pre_activation_values
+
+        # Apply activation function
+        post_activation_values = self.activation.forward(pre_activation_values)
+        return post_activation_values
+
+
+# The final layer — same weighted sum logic as HiddenLayer,
+# but uses an output function (like Softmax) instead of an activation function
+class OutputLayer(Layer):
+    """
+    Final layer.
+    Works the same as HiddenLayer but uses an OUTPUT FUNCTION instead
+    of an activation function
+    Softmax converts raw scores into probabilities that sum to 1.
+    """
+    def __init__(self, weights, biases, output_function):
+        self.weights = weights
+        self.biases = biases
+        self.output_function = output_function
+
+    def forward(self, inputs):
+        """
+        Same weighted sum logic as HiddenLayer.
+        Then applies the output function to get final predictions.
+        """
+        pre_activation_values = []
+
+        for node_weights, node_bias in zip(self.weights, self.biases):
+            weighted_sum = sum(weight * input_value for weight, input_value in zip(node_weights, inputs)) + node_bias
+            pre_activation_values.append(weighted_sum)
+
+        # Save for backpropagation
+        self.pre_activation_values = pre_activation_values
+
+        # Apply output function — Softmax gives us class probabilities
+        output_values = self.output_function.forward(pre_activation_values)
+        return output_values
+
+
+# ─────────────────────────────────────────────
+# ACTIVATION FUNCTIONS
+# ─────────────────────────────────────────────
+
+# Base class — every activation function must implement forward()
+class Activation:
+    """
+    Every activation function must have a forward().
+    """
+    def forward(self, inputs):
+        pass
+
+
+# Sigmoid squashes any value into the range 0–1
+# Useful for binary decisions — "is this feature present or not?"
+class Sigmoid(Activation):
+    """
+    Sigmoid squashes any value into a range between 0 and 1.
+    Formula  : 1 / (1 + e^(-x))
+    Useful for binary decisions!!
+    """
+    def forward(self, inputs):
+        # Applying sigmoid to every value in the list
+        return [1 / (1 + math.exp(-x)) for x in inputs]
+
+
+# ReLU is the most common activation function in modern networks
+# Positive values pass through unchanged; negatives become 0
+class ReLU(Activation):
+    """
+    If the value is positive, keep it. If negative, make it 0.
+    This helps the network learn complex patterns.
+    """
+    def forward(self, inputs):
+        # max(0, x) keeps positive values and zeros out negatives
+        return [max(0, x) for x in inputs]
+
+
+# Linear activation — passes values through completely unchanged
+# Useful when you don't want any non-linearity at a particular layer
+class Linear(Activation):
+    """
+    Linear activation - passes values through UNCHANGED.
+    """
+    def forward(self, inputs):
+        return inputs.copy()
+
+
+# ─────────────────────────────────────────────
+# OUTPUT FUNCTIONS
+# ─────────────────────────────────────────────
+
+# Base class for output functions — sits at the very end of the network
+class OutputFunction:
+    """
+    Blueprint for all output functions.
+    Output functions sit at the end of the network and shape the final prediction.
+    """
+    def forward(self, inputs):
+        pass
+
+
+# Softmax turns raw scores into probabilities that all add up to 1.0
+# We subtract the max value first to prevent overflow with very large numbers
+class Softmax(OutputFunction):
+    """
+    Softmax is used for MULTI-CLASS classification
+    It converts raw scores into probabilities:
+      - Every output is between 0 and 1
+      - All outputs add up to exactly 1.0
+    We subtract the max value first to prevent very large numbers.
+    """
+    def forward(self, inputs):
+        max_val = max(inputs)  # To prevent overflow
+        exps = [math.exp(x - max_val) for x in inputs]
+        total = sum(exps)
+        return [exponent / total for exponent in exps]  # Each value is now a probability
+
+
+# Linear output — no transformation, just passes values through
+class LinearOutput(OutputFunction):
+    def forward(self, inputs):
+        return inputs.copy()
+
+
+# ─────────────────────────────────────────────
+# MAIN ASSEMBLER — ties everything together
+# ─────────────────────────────────────────────
+
+# This is the main class that holds all the layers and runs the network
+# It handles forward passes, training (fit), evaluation, and describing the structure
+class MainAssembler:
+    """
+    The main container that holds all the layers.
+    Responsible for:
+      - Running the forward pass (making predictions)
+      - Training the network (fit)
+      - Evaluating accuracy
+      - Describing the network structure
+    """
+
+    def __init__(self, layers):
+        self.layers = layers  # List of Layer objects in order
+        self.history = {'loss': [], 'accuracy': []}  # Stores training progress per epoch
+
+    def forward(self, inputs):
+        """
+        Passes data through each layer from start to finish.
+        The output of one layer becomes the input of the next.
+        Returns the final output (predictions).
+        """
+        current_values = inputs
+
+        for layer in self.layers:
+            current_values = layer.forward(current_values)
+
+        return current_values
+
+    def predict(self, inputs):
+        """
+        Runs a forward pass and returns the PREDICTED CLASS INDEX.
+    
+        """
+        output_values = self.forward(inputs)
+        return output_values.index(max(output_values))  # Index of highest probability
+
+    def evaluate(self, dataset):
+        """
+        Tests the model on a dataset and returns accuracy as a float (0.0 to 1.0).
+        """
+        correct = 0
+
+        for inputs, label in dataset:
+            if isinstance(label, list):
+                label = label.index(max(label))
+
+            if self.predict(inputs) == label:
+                correct += 1
+
+        return correct / len(dataset)
+
+    def describe(self):
+        """
+        Prints a summary of the network structure.
+        Shows how many nodes and parameters (weights + biases) each layer has.
+        More parameters = more complex model = more things to learn.
+        """
+        total_parameters = 0
+
+        for layer in self.layers:
+            if isinstance(layer, (HiddenLayer, OutputLayer)):
+                # Count all weights + all biases in this layer
+                layer_params = sum(len(nw) for nw in layer.weights) + len(layer.biases)
+                total_parameters += layer_params
+                print(f"Layer: {len(layer.biases)} nodes, {layer_params} parameters")
+
+        print(f"Total parameters: {total_parameters}")
+
+    def fit(self, dataset, epochs, learning_rate):
+        """
+        TRAINS the network.
+        Loss used: Cross-Entropy Loss
+        """
+        for epoch in range(epochs):
+            epoch_loss = 0
+            correct = 0
+
+            for inputs, label in dataset:
+                # Handle one-hot encoded labels
+                if isinstance(label, list):
+                    label = label.index(max(label))
+
+                # forward ---->
+                # Collect inputs at every layer so backpropagation can use them
+                layer_inputs = [inputs]
+                for layer in self.layers:
+                    layer_inputs.append(layer.forward(layer_inputs[-1]))
+
+                output_values = layer_inputs[-1]  # Final predictions
+
+                # Cross-entropy loss: penalises the network more when it's confidently wrong
+                loss = -math.log(output_values[label] + 1e-12)
+                epoch_loss += loss
+
+                # Check if the prediction was correct
+                if output_values.index(max(output_values)) == label:
+                    correct += 1
+
+                # <---- backward
+                self.backpropagation(label, layer_inputs, learning_rate)
+
+            # Average loss and accuracy for THIS epoch
+            avg_loss = epoch_loss / len(dataset)
+            avg_accuracy = correct / len(dataset)
+            self.history['loss'].append(avg_loss)
+            self.history['accuracy'].append(avg_accuracy)
+
+            print(f"Epoch {epoch + 1}: Loss = {avg_loss:.4f}, Accuracy = {avg_accuracy:.4f}")
+
+    def backpropagation(self, label, layer_inputs, learning_rate):
+        """
+        Works BACKWARDS through the layers to update weights and biases.
+        """
+        # delta = predicted probability - true label (1 for correct class, 0 for others)
+        output_values = layer_inputs[-1]
+        delta = [
+            output_values[i] - (1 if i == label else 0)
+            for i in range(len(output_values))
+        ]
+
+        # Walk BACKWARDS through hidden and output layers
+        for layer_index in range(len(self.layers) - 1, 0, -1):
+            layer = self.layers[layer_index]
+
+            if isinstance(layer, (HiddenLayer, OutputLayer)):
+                layer_input = layer_inputs[layer_index]
+
+                # Save a copy of weights BEFORE updating them
+                # We need the old weights to compute the delta for the layer below
+                saved_weights = [nw[:] for nw in layer.weights]
+
+                # Update each weight: new_weight = old_weight - learning_rate * delta * input
+                for node_i in range(len(layer.weights)):
+                    for weight_i in range(len(layer.weights[node_i])):
+                    layer.weights[node_i][weight_i] -= (
+                    learning_rate * delta[node_i] * layer_input[weight_i]
+                    )
+                    # Update bias: new_bias = old_bias - learning_rate * delta
+                    layer.biases[node_i] -= learning_rate * delta[node_i]
+
+                if layer_index > 1:
+                    prev_layer = self.layers[layer_index - 1]
+                    pre_activation = prev_layer.pre_activation_values
+                    new_delta = []
+
+                    for node_i in range(len(layer_input)):
+                    # Chain rule: sum of (weight * delta) from the layer above
+                    grad = sum(saved_weights[j][node_i] * delta[j] for j in range(len(delta)))
+
+                    # ReLU derivative: 1 if pre-activation > 0, else 0
+                    relu_deriv = 1.0 if pre_activation[node_i] > 0 else 0.0
+
+                    new_delta.append(grad * relu_deriv)
+
+                    delta = new_delta  # Pass this delta further back
+
+
+# 
+# NETWORK BUILDER
+
+
+# Convenience function that builds a full network from a list of layer sizes
+# example: build_network([784, 128, 64, 10], ReLU(), Softmax())
+# creates an input layer, two hidden layers, and an output layer automatically
+def build_network(layer_sizes, activation, output_function):
+    """
+    Build a neural network with the specified layer sizes and activation functions.
+
+    Args:
+        layer_sizes: list of integers [4, 8, 3]
+            4 inputs, 8 hidden neurons, 3 output classes
+        activation: the activation function to use in hidden layers ( ReLU())
+        output_function: the output function for the final layer (Softmax())
+
+    Returns:
+        A list of layers ready to pass into MainAssembler().
+    """
+    layers = [InputLayer()]  # Always start with an InputLayer
+
+    for i in range(1, len(layer_sizes)):  # Start from 1 because 0 is the input layer
+        num_inputs = layer_sizes[i - 1]   # How many inputs this layer receives
+        num_nodes = layer_sizes[i]        # How many nodes this layer has
+
+        # Initialise weights with small random values between -0.1 and 0.1
+        # Small values help the network start learning without exploding gradients
+        weights = [
+            [random.uniform(-0.1, 0.1) for _ in range(num_inputs)]
+            for _ in range(num_nodes)
+        ]
+        biases = [0.0] * num_nodes  # Start all biases at zero
+
+        # The last layer gets the output function; all others get the activation function
+        if i == len(layer_sizes) - 1:
+            layers.append(OutputLayer(weights, biases, output_function))
+        else:
+            layers.append(HiddenLayer(weights, biases, activation))
+
+    return layers</code></pre>
+            </section>
+
+            <section>
+                <h2>Training Results</h2>
+                <table>
+                    <caption>Loss and accuracy during early training epochs</caption>
+                    <thead>
+                    <tr><th>Epoch</th><th>Loss</th><th>Accuracy</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>1</td><td>2.2696</td><td>14.00%</td></tr>
+                    <tr><td>2</td><td>2.0641</td><td>39.00%</td></tr>
+                    <tr><td>3</td><td>1.6238</td><td>52.50%</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section>
+                <h2>Model Comparison</h2>
+                <table>
+                    <caption>Train and test accuracy across different model sizes</caption>
+                    <thead>
+                    <tr><th>Model</th><th>Train Accuracy</th><th>Test Accuracy</th><th>Notes</th></tr>
+                    </thead>
+                    <tbody>
+                    <tr><td>Tiny</td><td>91.75%</td><td>81.50%</td><td>Underfits slightly</td></tr>
+                    <tr><td>Medium</td><td>93.12%</td><td>86.50%</td><td>Best balance overall</td></tr>
+                    <tr><td>Large</td><td>98.62%</td><td>88.50%</td><td>Some overfitting</td></tr>
+                    </tbody>
+                </table>
+                <p>The medium model gave the best balance between strong performance and generalisation. The large model achieved the highest training accuracy, but the gap between training and test accuracy suggests overfitting.</p>
+            </section>
+
+            <section>
+                <h2>Reflection</h2>
+                <p>This project helped me understand how weighted sums, ReLU, softmax, loss, and backpropagation work together in a neural network. It also showed me that model size matters — a model that is too small may underfit, while a model that is too large may overfit.</p>
+                <p>If I improved the project further, I would train for more epochs, add more visualisations of correct and incorrect predictions, and experiment with different learning rates to see how they affect the loss curve.</p>
+            </section>
+        </article>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>© 2026 Project Documentation Website</p>
+        </div>
+    </footer>
+</body>
+</html>
